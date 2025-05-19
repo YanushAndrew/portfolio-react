@@ -40,7 +40,7 @@ export function setToken(token: string): void {
   localStorage.setItem("token", token)
 }
 
-// Remove the user's token
+// Remove the user's token (for logout)
 export function removeToken(): void {
   if (typeof window === "undefined") return
 
@@ -54,5 +54,26 @@ export function getAuthHeaders(): HeadersInit {
   return {
     "Content-Type": "application/json",
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  }
+}
+
+// Get the current user
+export async function getCurrentUser() {
+  if (!isAuthenticated()) return null
+
+  try {
+    const response = await fetch('/api/auth/me', {
+      headers: getAuthHeaders(),
+    })
+
+    if (!response.ok) {
+      removeToken()
+      return null
+    }
+
+    return await response.json()
+  } catch (error) {
+    console.error('Error getting current user:', error)
+    return null
   }
 }
