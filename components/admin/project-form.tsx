@@ -16,12 +16,14 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { getAuthHeaders } from "@/lib/auth"; // Import for authenticated API calls
 
 // Define the schema for project validation
 const projectFormSchema = z.object({
+  id: z.string().uuid().optional(), // Add id for editing existing projects
   name: z.string().min(1, { message: "Project name is required." }),
   description: z.string().min(1, { message: "Description is required." }),
-  webLinks: z.array(z.string().url({ message: "Please enter a valid URL." })).optional(),
+  webLinks: z.array(z.string().url({ message: "Please enter a valid URL." }).or(z.literal(''))).optional(), // Allow empty string for URL if field is left blank
   githubLink: z.string().url({ message: "Please enter a valid URL." }).optional().or(z.literal('')),
   photoUrl: z.string().url({ message: "Please enter a valid image URL." }).optional().or(z.literal('')), // For simplicity, using URL for photo
   technologies: z.string().min(1, {message: "Please list technologies used."}), // Comma-separated for now
@@ -39,25 +41,70 @@ const defaultValues: Partial<ProjectFormValues> = {
   technologies: "",
 };
 
-export default function ProjectForm({ project }: { project?: ProjectFormValues }) {
+interface ProjectFormProps {
+  project?: ProjectFormValues;
+  onSuccess?: () => void; // Add onSuccess callback prop
+}
+
+export default function ProjectForm({ project, onSuccess }: ProjectFormProps) {
   const form = useForm<ProjectFormValues>({
     resolver: zodResolver(projectFormSchema),
     defaultValues: project || defaultValues,
     mode: "onChange",
   });
 
-  function onSubmit(data: ProjectFormValues) {
-    console.log("Project data:", data);
-    // Here you would typically call an API to save the project data
-    // For example:
-    // if (project) {
-    //   // Update existing project
-    //   await fetch(`/api/projects/${project.id}`, { method: 'PUT', body: JSON.stringify(data) });
-    // } else {
-    //   // Create new project
-    //   await fetch('/api/projects', { method: 'POST', body: JSON.stringify(data) });
-    // }
-    alert("Changes would be saved. Check console for data.");
+  async function onSubmit(data: ProjectFormValues) {
+    const apiData = {
+      title: data.name,
+      description: data.description,
+      image_url: data.photoUrl || null,
+      technologies: data.technologies.split(',').map(tech => tech.trim()).filter(tech => tech !== ""),
+      github_url: data.githubLink || null,
+      live_url: data.webLinks && data.webLinks.length > 0 && data.webLinks[0] ? data.webLinks[0] : null,
+    };
+
+    console.log("Submitting project data:", apiData);
+
+    try {
+      let response;
+      if (project?.id) {
+        // Update existing project
+        response = await fetch(`/api/projects/${project.id}`, {
+          method: 'PUT',
+          headers: { 
+            'Content-Type': 'application/json',
+            ...getAuthHeaders() // Add auth headers
+          }, 
+          body: JSON.stringify(apiData),
+        });
+      } else {
+        // Create new project
+        response = await fetch('/api/projects', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            ...getAuthHeaders() // Add auth headers
+          },
+          body: JSON.stringify(apiData),
+        });
+      }
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log("Project saved:", result);
+      alert("Project saved successfully!");
+      if (onSuccess) {
+        onSuccess(); // Call the callback
+      }
+      form.reset(); // Reset form after successful submission
+    } catch (error) {
+      console.error("Failed to save project:", error);
+      alert(`Error saving project: ${(error as Error).message}`);
+    }
   }
 
   // TODO: Implement UI for adding/removing webLinks dynamically

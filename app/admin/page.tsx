@@ -25,6 +25,32 @@ interface ProfileFormData {
   skills: string; // Comma-separated string for the form
 }
 
+// Define a type for Project data from API
+interface Project {
+  id: string;
+  title: string;
+  description: string;
+  image_url: string | null;
+  technologies: string[]; // Assuming API returns it as array of strings
+  github_url: string | null;
+  live_url: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// Define the form values for ProjectForm, ensuring compatibility
+// This should align with ProjectForm's own ProjectFormValues type if possible
+// For now, we'll use this to map API data to what ProjectForm expects.
+interface ProjectFormInput {
+  id?: string;
+  name: string;
+  description: string;
+  webLinks?: string[];
+  githubLink?: string;
+  photoUrl?: string;
+  technologies: string; // ProjectForm expects comma-separated string
+}
+
 export default function AdminPage() {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(true) // Overall page loading
@@ -43,6 +69,13 @@ export default function AdminPage() {
   const [isProfileSaving, setIsProfileSaving] = useState(false);
   const [profileSaveSuccess, setProfileSaveSuccess] = useState<string | null>(null);
   const [profileSaveError, setProfileSaveError] = useState<string | null>(null);
+
+  // Project specific state
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [isProjectsLoading, setIsProjectsLoading] = useState(false);
+  const [projectsError, setProjectsError] = useState<string | null>(null);
+  const [selectedProject, setSelectedProject] = useState<ProjectFormInput | undefined>(undefined);
+  const [showProjectForm, setShowProjectForm] = useState(false);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -91,6 +124,72 @@ export default function AdminPage() {
     }
   }, [activeTab, user]);
 
+  // Fetch projects data when tab is active and user is loaded
+  useEffect(() => {
+    if (activeTab === 'projects' && user) {
+      fetchProjects();
+    }
+  }, [activeTab, user]);
+
+  const fetchProjects = async () => {
+    setIsProjectsLoading(true);
+    setProjectsError(null);
+    try {
+      // Assuming fetchAPI handles auth headers if needed, or using getAuthHeaders()
+      const data = await fetchAPI<Project[]>('/api/projects');
+      setProjects(data || []);
+    } catch (error) {
+      console.error("Failed to fetch projects:", error);
+      setProjectsError(error instanceof Error ? error.message : "Failed to load projects data.");
+    } finally {
+      setIsProjectsLoading(false);
+    }
+  };
+
+  const handleEditProject = (project: Project) => {
+    setSelectedProject({
+      id: project.id,
+      name: project.title,
+      description: project.description,
+      webLinks: project.live_url ? [project.live_url] : [],
+      githubLink: project.github_url || "",
+      photoUrl: project.image_url || "",
+      technologies: project.technologies.join(", "),
+    });
+    setShowProjectForm(true);
+  };
+
+  const handleAddNewProject = () => {
+    setSelectedProject(undefined); // Clear any selected project
+    setShowProjectForm(true); // Show the form for a new project
+  };
+  
+  const handleProjectFormSuccess = () => {
+    setShowProjectForm(false);
+    setSelectedProject(undefined);
+    fetchProjects(); // Refresh the list of projects
+  };
+
+  const handleDeleteProject = async (projectId: string) => {
+    if (!confirm("Are you sure you want to delete this project?")) {
+      return;
+    }
+    try {
+      const response = await fetch(`/api/projects/${projectId}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(), // Assuming DELETE also needs auth
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+      }
+      alert("Project deleted successfully!");
+      fetchProjects(); // Refresh the list
+    } catch (error) {
+      console.error("Failed to delete project:", error);
+      alert(`Error deleting project: ${(error as Error).message}`);
+    }
+  };
 
   const handleProfileInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -132,7 +231,6 @@ export default function AdminPage() {
       setIsProfileSaving(false);
     }
   };
-
 
   const handleLogout = async () => {
     try {
@@ -299,7 +397,59 @@ export default function AdminPage() {
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <ProjectForm />
+                    {isProjectsLoading && (
+                      <div className="flex items-center justify-center p-4">
+                        <Loader2 className="h-6 w-6 animate-spin" /> <span className="ml-2">Loading projects...</span>
+                      </div>
+                    )}
+                    {!isProjectsLoading && projectsError && (
+                      <p className="text-destructive">Error loading projects: {projectsError}</p>
+                    )}
+                    {!isProjectsLoading && !projectsError && !showProjectForm && (
+                      <>
+                        <div className="mb-4 flex justify-end">
+                          <Button onClick={handleAddNewProject}>Add New Project</Button>
+                        </div>
+                        {projects.length === 0 ? (
+                          <p className="text-muted-foreground italic">Oopsie, I will work on this, someday</p>
+                        ) : (
+                          <div className="space-y-4">
+                            {projects.map((project) => (
+                              <Card key={project.id} className="bg-card/50">
+                                <CardHeader>
+                                  <CardTitle className="flex justify-between items-center">
+                                    {project.title}
+                                    <div className="space-x-2">
+                                      <Button variant="outline" size="sm" onClick={() => handleEditProject(project)}>Edit</Button>
+                                      <Button variant="destructive" size="sm" onClick={() => handleDeleteProject(project.id)}>Delete</Button>
+                                    </div>
+                                  </CardTitle>
+                                  <CardDescription>{project.description.substring(0,100)}...</CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                  <p className="text-sm text-muted-foreground">
+                                    Technologies: {project.technologies.join(", ")}
+                                  </p>
+                                  {project.live_url && <p className="text-sm text-muted-foreground">Live URL: <Link href={project.live_url} target="_blank" className="text-primary hover:underline">{project.live_url}</Link></p>}
+                                  {project.github_url && <p className="text-sm text-muted-foreground">GitHub: <Link href={project.github_url} target="_blank" className="text-primary hover:underline">{project.github_url}</Link></p>}
+                                </CardContent>
+                              </Card>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    )}
+                    {showProjectForm && (
+                      <>
+                        <Button variant="outline" onClick={() => { setShowProjectForm(false); setSelectedProject(undefined); }} className="mb-4">
+                          Back to Projects List
+                        </Button>
+                        <ProjectForm
+                          project={selectedProject}
+                          onSuccess={handleProjectFormSuccess}
+                        />
+                      </>
+                    )}
                   </CardContent>
                 </Card>
               </TabsContent>
