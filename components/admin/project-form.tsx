@@ -18,15 +18,42 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getAuthHeaders } from "@/lib/auth"; // Import for authenticated API calls
 
+// Helper for optional URL fields that can also be empty strings
+const optionalUrlOrEmptyString = z.preprocess(
+  (val) => (val === "" ? undefined : val), // Treat empty string as undefined
+  z.string().url({ message: "Please enter a valid URL." }).optional()
+);
+
 // Define the schema for project validation
 const projectFormSchema = z.object({
   id: z.string().uuid().optional(), // Add id for editing existing projects
   name: z.string().min(1, { message: "Project name is required." }),
   description: z.string().min(1, { message: "Description is required." }),
-  webLinks: z.array(z.string().url({ message: "Please enter a valid URL." }).or(z.literal(''))).optional(), // Allow empty string for URL if field is left blank
-  githubLink: z.string().url({ message: "Please enter a valid URL." }).optional().or(z.literal('')),
-  photoUrl: z.string().url({ message: "Please enter a valid image URL." }).optional().or(z.literal('')), // For simplicity, using URL for photo
+  webLinks: z.array(optionalUrlOrEmptyString).optional(), // Allow empty string for URL if field is left blank
+  githubLink: optionalUrlOrEmptyString, // Uses the helper
+  photoUrl: optionalUrlOrEmptyString, // For simplicity, using URL for photo
   technologies: z.string().min(1, {message: "Please list technologies used."}), // Comma-separated for now
+}).superRefine((data, ctx) => {
+  // A link is considered successfully provided if it's a string after a
+  // successful URL validation (empty strings/undefined would not be strings here).
+  const isGithubLinkProvided = typeof data.githubLink === 'string';
+  const isWebLinkProvided = data.webLinks && data.webLinks.length > 0 && typeof data.webLinks[0] === 'string';
+
+  if (!isGithubLinkProvided && !isWebLinkProvided) {
+    const errorMessage = "Either a valid Website link or a valid GitHub link is required.";
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: errorMessage,
+      path: ["githubLink"],
+    });
+    // Also add to webLinks path so the message can appear there too.
+    // Targeting webLinks[0] specifically if that's the only input shown.
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: errorMessage,
+      path: ["webLinks", 0], 
+    });
+  }
 });
 
 type ProjectFormValues = z.infer<typeof projectFormSchema>;
@@ -36,8 +63,8 @@ const defaultValues: Partial<ProjectFormValues> = {
   name: "",
   description: "",
   webLinks: [],
-  githubLink: "",
-  photoUrl: "",
+  githubLink: undefined,
+  photoUrl: undefined,
   technologies: "",
 };
 
@@ -49,18 +76,28 @@ interface ProjectFormProps {
 export default function ProjectForm({ project, onSuccess }: ProjectFormProps) {
   const form = useForm<ProjectFormValues>({
     resolver: zodResolver(projectFormSchema),
-    defaultValues: project || defaultValues,
+    defaultValues: project
+      ? {
+          ...defaultValues, // spread default first
+          ...project,       // then project data
+          // Ensure webLinks is an array, even if project.webLinks is undefined
+          webLinks: project.webLinks || [], 
+        }
+      : defaultValues,
     mode: "onChange",
   });
 
   async function onSubmit(data: ProjectFormValues) {
+    // Filter out undefined or empty webLinks before sending to API
+    const validWebLinks = (data.webLinks || []).filter(link => typeof link === 'string' && link.trim() !== '');
+
     const apiData = {
       title: data.name,
       description: data.description,
       image_url: data.photoUrl || null,
       technologies: data.technologies.split(',').map(tech => tech.trim()).filter(tech => tech !== ""),
       github_url: data.githubLink || null,
-      live_url: data.webLinks && data.webLinks.length > 0 && data.webLinks[0] ? data.webLinks[0] : null,
+      live_url: validWebLinks.length > 0 ? validWebLinks[0] : null,
     };
 
     console.log("Submitting project data:", apiData);
@@ -100,7 +137,8 @@ export default function ProjectForm({ project, onSuccess }: ProjectFormProps) {
       if (onSuccess) {
         onSuccess(); // Call the callback
       }
-      form.reset(); // Reset form after successful submission
+      // Reset with base defaults, not potentially merged project data
+      form.reset(defaultValues);
     } catch (error) {
       console.error("Failed to save project:", error);
       alert(`Error saving project: ${(error as Error).message}`);
@@ -150,15 +188,15 @@ export default function ProjectForm({ project, onSuccess }: ProjectFormProps) {
               )}
             />
             
-            {/* TODO: Add a dynamic list for webLinks */}
             <FormField
               control={form.control}
-              name="webLinks.0" // Placeholder for the first web link
+              name="webLinks.0" 
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Website Link (Optional)</FormLabel>
                   <FormControl>
-                    <Input placeholder="https://example.com" {...field} />
+                    {/* Ensure value is not null/undefined for controlled Input */}
+                    <Input placeholder="https://example.com" {...field} value={field.value || ''} />
                   </FormControl>
                   <FormDescription>
                     Add a link to the live project if available.
@@ -168,7 +206,6 @@ export default function ProjectForm({ project, onSuccess }: ProjectFormProps) {
               )}
             />
 
-
             <FormField
               control={form.control}
               name="githubLink"
@@ -176,7 +213,8 @@ export default function ProjectForm({ project, onSuccess }: ProjectFormProps) {
                 <FormItem>
                   <FormLabel>GitHub Link (Optional)</FormLabel>
                   <FormControl>
-                    <Input placeholder="https://github.com/user/repo" {...field} />
+                     {/* Ensure value is not null/undefined for controlled Input */}
+                    <Input placeholder="https://github.com/user/repo" {...field} value={field.value || ''} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -190,7 +228,8 @@ export default function ProjectForm({ project, onSuccess }: ProjectFormProps) {
                 <FormItem>
                   <FormLabel>Project Photo URL (Optional)</FormLabel>
                   <FormControl>
-                    <Input placeholder="https://example.com/image.png" {...field} />
+                     {/* Ensure value is not null/undefined for controlled Input */}
+                    <Input placeholder="https://example.com/image.png" {...field} value={field.value || ''} />
                   </FormControl>
                    <FormDescription>
                     For now, please use a URL. Actual file upload will be implemented later.
