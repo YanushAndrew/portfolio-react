@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input"; // Added Input
 import { Label } from "@/components/ui/label"; // Added Label
 import { Textarea } from "@/components/ui/textarea"; // Added Textarea
 import { fetchAPI } from "@/lib/api"; // To make API calls
+import ProjectForm from "@/components/admin/project-form"; // Import ProjectForm
 
 // Define a type for the profile form data
 interface ProfileFormData {
@@ -292,22 +293,13 @@ export default function AdminPage() {
               <TabsContent value="projects">
                 <Card className="border border-border/50 backdrop-blur-sm bg-card/80">
                   <CardHeader>
-                    <CardTitle>Projects Management</CardTitle>
-                    <CardDescription>Add, edit, or remove projects from your portfolio</CardDescription>
+                    <CardTitle>Manage Projects</CardTitle>
+                    <CardDescription>
+                      Add, edit, or remove projects from your portfolio.
+                    </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-muted-foreground">
-                      This is a placeholder for the projects management interface. In a real application, you would be
-                      able to add, edit, and delete projects here.
-                    </p>
-
-                    {/* 
-                      Backend Integration Point:
-                      - Create API endpoints at /api/projects to fetch, create, update, and delete projects
-                      - Implement a form to add/edit project details
-                      - Add image upload functionality for project thumbnails
-                      - Implement a confirmation dialog for project deletion
-                    */}
+                    <ProjectForm />
                   </CardContent>
                 </Card>
               </TabsContent>
