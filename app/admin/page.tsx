@@ -99,6 +99,7 @@ export default function AdminPage() {
   const [projectsError, setProjectsError] = useState<string | null>(null);
   const [selectedProject, setSelectedProject] = useState<ProjectFormInput | undefined>(undefined);
   const [showProjectForm, setShowProjectForm] = useState(false);
+  const [isSavingProjectOrder, setIsSavingProjectOrder] = useState(false);
 
   // Contact specific state
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -173,8 +174,7 @@ export default function AdminPage() {
     setIsProjectsLoading(true);
     setProjectsError(null);
     try {
-      // Assuming fetchAPI handles auth headers if needed, or using getAuthHeaders()
-      const data = await fetchAPI<Project[]>('/api/projects');
+      const data = await fetchAPI<Project[]>('/api/projects'); // This API now sorts by order_index
       setProjects(data || []);
     } catch (error) {
       console.error("Failed to fetch projects:", error);
@@ -262,6 +262,45 @@ export default function AdminPage() {
     } catch (error) {
       console.error("Failed to delete project:", error);
       alert(`Error deleting project: ${(error as Error).message}`);
+    }
+  };
+
+  const moveProject = (index: number, direction: 'up' | 'down') => {
+    setProjects(currentProjects => {
+      const newProjects = [...currentProjects];
+      const projectToMove = newProjects[index];
+      
+      if (direction === 'up' && index > 0) {
+        newProjects.splice(index, 1);
+        newProjects.splice(index - 1, 0, projectToMove);
+      } else if (direction === 'down' && index < newProjects.length - 1) {
+        newProjects.splice(index, 1);
+        newProjects.splice(index + 1, 0, projectToMove);
+      }
+      return newProjects;
+    });
+  };
+
+  const handleSaveProjectOrder = async () => {
+    setIsSavingProjectOrder(true);
+    const orderedIds = projects.map(p => p.id);
+    try {
+      const response = await fetch('/api/projects/reorder', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        body: JSON.stringify({ orderedIds }),
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to save project order");
+      }
+      alert("Project order saved successfully!");
+      fetchProjects(); // Refresh to confirm order from DB
+    } catch (error) {
+      console.error("Failed to save project order:", error);
+      alert(`Error saving project order: ${(error as Error).message}`);
+    } finally {
+      setIsSavingProjectOrder(false);
     }
   };
 
@@ -527,7 +566,7 @@ export default function AdminPage() {
                   <CardHeader>
                     <CardTitle>Manage Projects</CardTitle>
                     <CardDescription>
-                      Add, edit, or remove projects from your portfolio.
+                      Add, edit, or remove projects from your portfolio. You can also reorder them.
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
@@ -547,29 +586,60 @@ export default function AdminPage() {
                         {projects.length === 0 ? (
                           <p className="text-muted-foreground italic">Oopsie, I will work on this, someday</p>
                         ) : (
-                          <div className="space-y-4">
-                            {projects.map((project) => (
-                              <Card key={project.id} className="bg-card/50">
-                                <CardHeader>
-                                  <CardTitle className="flex justify-between items-center">
-                                    {project.title}
-                                    <div className="space-x-2">
-                                      <Button variant="outline" size="sm" onClick={() => handleEditProject(project)}>Edit</Button>
-                                      <Button variant="destructive" size="sm" onClick={() => handleDeleteProject(project.id)}>Delete</Button>
-                                    </div>
-                                  </CardTitle>
-                                  <CardDescription>{project.description.substring(0,100)}...</CardDescription>
-                                </CardHeader>
-                                <CardContent>
-                                  <p className="text-sm text-muted-foreground">
-                                    Technologies: {project.technologies.join(", ")}
-                                  </p>
-                                  {project.live_url && <p className="text-sm text-muted-foreground">Live URL: <Link href={project.live_url} target="_blank" className="text-primary hover:underline">{project.live_url}</Link></p>}
-                                  {project.github_url && <p className="text-sm text-muted-foreground">GitHub: <Link href={project.github_url} target="_blank" className="text-primary hover:underline">{project.github_url}</Link></p>}
-                                </CardContent>
-                              </Card>
-                            ))}
-                          </div>
+                          <>
+                            <div className="space-y-4">
+                              <AnimatePresence initial={false}>
+                                {projects.map((project, index) => (
+                                  <MotionCard
+                                    layout
+                                    key={project.id}
+                                    className="bg-card/50 flex flex-col"
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: -20, transition: { duration: 0.2 } }}
+                                    transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                                  >
+                                    <CardHeader className="flex-grow">
+                                      <CardTitle className="flex justify-between items-center">
+                                        {project.title}
+                                        <div className="space-x-2 flex items-center">
+                                          <Button variant="ghost" size="sm" onClick={() => moveProject(index, 'up')} disabled={index === 0} aria-label="Move Up">
+                                            <ChevronUp className="h-4 w-4" />
+                                          </Button>
+                                          <Button variant="ghost" size="sm" onClick={() => moveProject(index, 'down')} disabled={index === projects.length - 1} aria-label="Move Down">
+                                            <ChevronDown className="h-4 w-4" />
+                                          </Button>
+                                          <Button variant="outline" size="sm" onClick={() => handleEditProject(project)}>Edit</Button>
+                                          <Button variant="destructive" size="sm" onClick={() => handleDeleteProject(project.id)}>Delete</Button>
+                                        </div>
+                                      </CardTitle>
+                                      <CardDescription>{project.description.substring(0,100)}...</CardDescription>
+                                    </CardHeader>
+                                    <CardContent>
+                                      <p className="text-sm text-muted-foreground">
+                                        Technologies: {project.technologies.join(", ")}
+                                      </p>
+                                      {project.live_url && <p className="text-sm text-muted-foreground">Live URL: <Link href={project.live_url} target="_blank" className="text-primary hover:underline">{project.live_url}</Link></p>}
+                                      {project.github_url && <p className="text-sm text-muted-foreground">GitHub: <Link href={project.github_url} target="_blank" className="text-primary hover:underline">{project.github_url}</Link></p>}
+                                    </CardContent>
+                                  </MotionCard>
+                                ))}
+                              </AnimatePresence>
+                            </div>
+                            {projects.length > 1 && (
+                              <motion.div
+                                layout
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: 'auto' }}
+                                exit={{ opacity: 0, height: 0 }}
+                                className="mt-6 flex justify-end"
+                              >
+                                <Button onClick={handleSaveProjectOrder} disabled={isSavingProjectOrder}>
+                                  {isSavingProjectOrder ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Saving Order...</> : "Save Project Order"}
+                                </Button>
+                              </motion.div>
+                            )}
+                          </>
                         )}
                       </>
                     )}
