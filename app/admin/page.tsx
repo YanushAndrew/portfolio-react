@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { Loader2, ChevronLeft } from "lucide-react"
+import { Loader2, ChevronLeft, ChevronUp, ChevronDown } from "lucide-react"
 import Link from "next/link"
 import { motion, AnimatePresence } from "framer-motion"
 import { Button } from "@/components/ui/button"
@@ -104,6 +104,7 @@ export default function AdminPage() {
   const [contactsError, setContactsError] = useState<string | null>(null);
   const [selectedContact, setSelectedContact] = useState<ContactFormInput | undefined>(undefined);
   const [showContactForm, setShowContactForm] = useState(false);
+  const [isSavingOrder, setIsSavingOrder] = useState(false);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -259,6 +260,45 @@ export default function AdminPage() {
     } catch (error) {
       console.error("Failed to delete project:", error);
       alert(`Error deleting project: ${(error as Error).message}`);
+    }
+  };
+
+  const moveContact = (index: number, direction: 'up' | 'down') => {
+    setContacts(currentContacts => {
+      const newContacts = [...currentContacts];
+      const contactToMove = newContacts[index];
+      
+      if (direction === 'up' && index > 0) {
+        newContacts.splice(index, 1);
+        newContacts.splice(index - 1, 0, contactToMove);
+      } else if (direction === 'down' && index < newContacts.length - 1) {
+        newContacts.splice(index, 1);
+        newContacts.splice(index + 1, 0, contactToMove);
+      }
+      return newContacts;
+    });
+  };
+
+  const handleSaveContactOrder = async () => {
+    setIsSavingOrder(true);
+    const orderedIds = contacts.map(c => c.id);
+    try {
+      const response = await fetch('/api/contacts/reorder', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        body: JSON.stringify({ orderedIds }),
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to save contact order");
+      }
+      alert("Contact order saved successfully!");
+      fetchContacts(); // Refresh to confirm order from DB, though local state should match
+    } catch (error) {
+      console.error("Failed to save contact order:", error);
+      alert(`Error saving contact order: ${(error as Error).message}`);
+    } finally {
+      setIsSavingOrder(false);
     }
   };
 
@@ -569,23 +609,38 @@ export default function AdminPage() {
                         {contacts.length === 0 ? (
                           <p className="text-muted-foreground italic">No contacts configured yet. Add some!</p>
                         ) : (
-                          <div className="space-y-4">
-                            {contacts.map((contact) => (
-                              <Card key={contact.id} className="bg-card/50">
-                                <CardHeader>
-                                  <CardTitle className="flex justify-between items-center">
-                                    {contact.type}: {contact.value}
-                                    <div className="space-x-2">
-                                      <Button variant="outline" size="sm" onClick={() => handleEditContact(contact)}>Edit</Button>
-                                      <Button variant="destructive" size="sm" onClick={() => handleDeleteContact(contact.id)}>Delete</Button>
-                                    </div>
-                                  </CardTitle>
-                                  {contact.url && <CardDescription>URL: <Link href={contact.url} target="_blank" className="text-primary hover:underline">{contact.url}</Link></CardDescription>}
-                                </CardHeader>
-                                {contact.icon && <CardContent><p className="text-sm text-muted-foreground">Icon: {contact.icon}</p></CardContent>}
-                              </Card>
-                            ))}
-                          </div>
+                          <>
+                            <div className="space-y-4">
+                              {contacts.map((contact, index) => (
+                                <Card key={contact.id} className="bg-card/50 flex flex-col">
+                                  <CardHeader className="flex-grow">
+                                    <CardTitle className="flex justify-between items-center">
+                                      {contact.type}: {contact.value}
+                                      <div className="space-x-2 flex items-center">
+                                        <Button variant="ghost" size="sm" onClick={() => moveContact(index, 'up')} disabled={index === 0} aria-label="Move Up">
+                                          <ChevronUp className="h-4 w-4" />
+                                        </Button>
+                                        <Button variant="ghost" size="sm" onClick={() => moveContact(index, 'down')} disabled={index === contacts.length - 1} aria-label="Move Down">
+                                          <ChevronDown className="h-4 w-4" />
+                                        </Button>
+                                        <Button variant="outline" size="sm" onClick={() => handleEditContact(contact)}>Edit</Button>
+                                        <Button variant="destructive" size="sm" onClick={() => handleDeleteContact(contact.id)}>Delete</Button>
+                                      </div>
+                                    </CardTitle>
+                                    {contact.url && <CardDescription>URL: <Link href={contact.url} target="_blank" className="text-primary hover:underline">{contact.url}</Link></CardDescription>}
+                                  </CardHeader>
+                                  {contact.icon && <CardContent><p className="text-sm text-muted-foreground">Icon: {contact.icon}</p></CardContent>}
+                                </Card>
+                              ))}
+                            </div>
+                            {contacts.length > 1 && (
+                              <div className="mt-6 flex justify-end">
+                                <Button onClick={handleSaveContactOrder} disabled={isSavingOrder}>
+                                  {isSavingOrder ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Saving Order...</> : "Save Contact Order"}
+                                </Button>
+                              </div>
+                            )}
+                          </>
                         )}
                       </>
                     )}

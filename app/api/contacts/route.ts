@@ -4,7 +4,7 @@ import pool from '@/lib/db';
 
 export async function GET() {
   try {
-    const result = await pool.query('SELECT * FROM contacts ORDER BY type ASC');
+    const result = await pool.query('SELECT * FROM contacts ORDER BY order_index ASC, type ASC');
     return NextResponse.json(result.rows);
   } catch (error) {
     console.error('Get contacts error:', error);
@@ -22,9 +22,13 @@ export async function POST(req: NextRequest) {
     
     const { type, value, url, icon } = await req.json();
     
+    // Get the current max order_index
+    const maxOrderResult = await pool.query('SELECT MAX(order_index) as max_order FROM contacts');
+    const nextOrderIndex = (maxOrderResult.rows[0].max_order || 0) + 1;
+
     const result = await pool.query(
-      'INSERT INTO contacts (type, value, url, icon) VALUES ($1, $2, $3, $4) RETURNING *',
-      [type, value, url, icon]
+      'INSERT INTO contacts (type, value, url, icon, order_index) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+      [type, value, url, icon, nextOrderIndex]
     );
     
     return NextResponse.json(result.rows[0]);
