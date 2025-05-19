@@ -12,12 +12,12 @@ async function seedAdmin() {
     }
     
     // Hash the password
-    const hashedPassword = await bcrypt.hash('admin123', 10);
+    const hashedPassword = await bcrypt.hash('admin_admin', 10);
     
     // Insert admin user
     const result = await pool.query(
       'INSERT INTO users (username, password) VALUES ($1, $2) RETURNING id, username',
-      ['admin', hashedPassword]
+      ['admin-admin', hashedPassword]
     );
     
     console.log('Admin user created:', result.rows[0]);

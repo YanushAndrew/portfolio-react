@@ -9,36 +9,46 @@ import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Blob } from "@/components/ui/blob"
+import { isAuthenticated, removeToken, getCurrentUser } from "@/lib/auth"; // Import auth functions
 
 export default function AdminPage() {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(true)
   const [activeTab, setActiveTab] = useState("profile")
+  const [user, setUser] = useState<any>(null); // To store user info
 
-  // In a real application, you would check if the user is authenticated
   useEffect(() => {
-    // Simulate checking authentication
     const checkAuth = async () => {
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      if (!isAuthenticated()) {
+        router.push('/admin/login');
+      } else {
+        // Optionally, verify token with backend or get user details
+        const currentUser = await getCurrentUser();
+        if (!currentUser) {
+          removeToken(); // Token might be invalid
+          router.push('/admin/login');
+        } else {
+          setUser(currentUser);
+          setIsLoading(false);
+        }
+      }
+    };
 
-      // For demo purposes, we'll just check if we're in a browser environment
-      // In a real application, you would check if the user has a valid token
-      // const token = localStorage.getItem('token')
-      // if (!token) {
-      //   router.push('/admin/login')
-      // }
+    checkAuth();
+  }, [router]);
 
-      setIsLoading(false)
+  const handleLogout = async () => {
+    try {
+      // Optional: Call logout API endpoint if you have one that invalidates server-side sessions or logs activity
+      // await fetch('/api/auth/logout', { method: 'POST', headers: getAuthHeaders() });
+    } catch (error) {
+      console.error("Logout failed:", error);
+      // Handle logout error if necessary, though client-side token removal is usually sufficient for JWT
+    } finally {
+      removeToken(); // Remove token from localStorage
+      router.push("/admin/login"); // Redirect to login page
     }
-
-    checkAuth()
-  }, [router])
-
-  const handleLogout = () => {
-    // In a real application, you would clear the token
-    // localStorage.removeItem('token')
-    router.push("/")
-  }
+  };
 
   if (isLoading) {
     return (
@@ -46,6 +56,16 @@ export default function AdminPage() {
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     )
+  }
+
+  // If not loading and still no user (should have been redirected, but as a fallback)
+  if (!user) {
+     return (
+      <div className="container flex flex-col justify-center items-center min-h-screen">
+        <p className="mb-4">Redirecting to login...</p>
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
   }
 
   return (
@@ -128,7 +148,7 @@ export default function AdminPage() {
                 <Card className="border border-border/50 backdrop-blur-sm bg-card/80">
                   <CardHeader>
                     <CardTitle>Profile Information</CardTitle>
-                    <CardDescription>Manage your personal information displayed on the homepage</CardDescription>
+                    <CardDescription>Manage your personal information displayed on the homepage. Welcome, {user?.username || 'Admin'}!</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <p className="text-muted-foreground">

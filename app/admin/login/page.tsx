@@ -1,8 +1,7 @@
 "use client"
 
 import type React from "react"
-
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Loader2, ChevronLeft } from "lucide-react"
 import Link from "next/link"
@@ -12,11 +11,18 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Blob } from "@/components/ui/blob"
+import { setToken, isAuthenticated } from "@/lib/auth"
 
 export default function LoginPage() {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
+
+  useEffect(() => {
+    if (isAuthenticated()) {
+      router.push("/admin");
+    }
+  }, [router]);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -28,29 +34,25 @@ export default function LoginPage() {
     const password = formData.get("password") as string
 
     try {
-      // In a real application, you would send a request to the backend
-      // const response = await fetch('/api/auth/login', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ username, password }),
-      // })
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password }),
+      })
 
-      // if (!response.ok) {
-      //   throw new Error('Invalid credentials')
-      // }
-
-      // Simulate a successful login for demo purposes
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-
-      // For demo purposes, we'll just check if the username and password match a predefined value
-      if (username === "admin" && password === "password") {
-        // In a real application, you would store the token in localStorage or a cookie
-        // localStorage.setItem('token', await response.json().token)
-
-        router.push("/admin")
-      } else {
-        throw new Error("Invalid credentials")
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Invalid credentials');
       }
+
+      const data = await response.json();
+      if (data.token) {
+        setToken(data.token);
+        router.push("/admin");
+      } else {
+        throw new Error("Login failed: No token received");
+      }
+
     } catch (error) {
       if (error instanceof Error) {
         setError(error.message)
@@ -121,7 +123,7 @@ export default function LoginPage() {
             <CardContent className="space-y-4">
               {error && (
                 <motion.div
-                  className="p-3 text-sm text-white bg-destructive rounded-md"
+                  className="p-3 text-sm text-destructive-foreground bg-destructive rounded-md"
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: "auto" }}
                   exit={{ opacity: 0, height: 0 }}
@@ -135,7 +137,7 @@ export default function LoginPage() {
                 <Input
                   id="username"
                   name="username"
-                  placeholder="admin"
+                  placeholder="admin-admin"
                   required
                   className="bg-background/50 backdrop-blur-sm"
                 />
