@@ -2,10 +2,13 @@
 
 import { useEffect, useState, useRef, type ElementType } from "react"
 import { motion, useInView } from "framer-motion"
-import { Mail, Github, MessageCircle, Linkedin, Phone, FileText, Twitter, HelpCircle } from "lucide-react" // Add more icons as needed
+import { 
+  Mail, Github, MessageCircle, Linkedin, Phone, FileText, Twitter, HelpCircle, AtSign, Youtube, Send,
+  Instagram, Facebook, Dribbble, Gitlab, Slack, Globe, ExternalLink, User, Code, Server, Briefcase, Building, Home
+} from "lucide-react" 
 import { ContactItem, type ContactInfo } from "@/components/contact-item"
 import { SectionHeader } from "@/components/ui/section-header"
-import { Loader2 } from "lucide-react" // For loading indicator
+import { Loader2, type LucideIcon } from "lucide-react" // For loading indicator
 
 // API Contact type
 interface ApiContact {
@@ -17,18 +20,40 @@ interface ApiContact {
 }
 
 // Map icon names to Lucide components
-const iconMap: { [key: string]: ElementType } = {
+const iconMap: { [key: string]: LucideIcon } = {
   mail: Mail,
+  email: Mail, // Alias for mail
   github: Github,
+  gitlab: Gitlab,
   linkedin: Linkedin,
-  telegram: MessageCircle, // Using MessageCircle for Telegram as an example
+  telegram: MessageCircle, 
+  message: MessageCircle, // Alias
   phone: Phone,
+  call: Phone, // Alias
   resume: FileText,
+  cv: FileText, // Alias
   twitter: Twitter,
-  default: HelpCircle, // Fallback icon
+  atsign: AtSign,
+  youtube: Youtube,
+  send: Send,
+  instagram: Instagram,
+  facebook: Facebook,
+  dribbble: Dribbble,
+  slack: Slack,
+  website: Globe,
+  web: Globe, // Alias
+  link: ExternalLink,
+  portfolio: Briefcase,
+  profile: User,
+  code: Code,
+  server: Server,
+  company: Building,
+  office: Building, //Alias
+  home: Home,
+  default: HelpCircle, 
 };
 
-const getIconComponent = (iconName: string | null): ElementType => {
+const getIconComponent = (iconName: string | null): LucideIcon => {
   if (iconName && iconMap[iconName.toLowerCase()]) {
     return iconMap[iconName.toLowerCase()];
   }
@@ -59,7 +84,7 @@ export function ContactsSection() {
           type: c.type,
           value: c.value,
           url: c.url || undefined, // ContactItem expects url to be string | undefined
-          icon: getIconComponent(c.icon),
+          icon: getIconComponent(c.icon), // This should now correctly assign LucideIcon
         }));
         setContacts(mappedContacts);
       } catch (e) {
