@@ -88,7 +88,10 @@ export function HomeSection() {
         initial="hidden"
         animate="visible"
       >
-        <motion.div className="relative" variants={fadeUp}>
+        <motion.div
+          className="relative w-full max-w-[200px] sm:max-w-[250px] md:max-w-[300px]"
+          variants={fadeUp}
+        >
           {/* Decorative circle behind profile image */}
           <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-primary/20 to-primary/5 blur-md -z-10 scale-110" />
 
