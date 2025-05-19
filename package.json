@@ -39,17 +39,23 @@
     "@radix-ui/react-toggle": "1.1.1",
     "@radix-ui/react-toggle-group": "1.1.1",
     "@radix-ui/react-tooltip": "1.1.6",
+    "@types/jsonwebtoken": "^9.0.5",
+    "@types/pg": "^8.10.9",
     "autoprefixer": "^10.4.20",
+    "bcryptjs": "^3.0.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "1.0.4",
     "date-fns": "4.1.0",
+    "dotenv": "^16.3.1",
     "embla-carousel-react": "8.5.1",
     "framer-motion": "latest",
     "input-otp": "1.4.1",
+    "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.454.0",
     "next": "15.2.4",
     "next-themes": "latest",
+    "pg": "^8.11.3",
     "react": "^19",
     "react-day-picker": "8.10.1",
     "react-dom": "^19",
@@ -60,14 +66,7 @@
     "tailwind-merge": "^2.5.5",
     "tailwindcss-animate": "^1.0.7",
     "vaul": "^0.9.6",
-    "zod": "^3.24.1",
-    "pg": "^8.11.3",
-    "@types/pg": "^8.10.9",
-    "bcrypt": "^5.1.1",
-    "@types/bcrypt": "^5.0.2",
-    "jsonwebtoken": "^9.0.2",
-    "@types/jsonwebtoken": "^9.0.5",
-    "dotenv": "^16.3.1"
+    "zod": "^3.24.1"
   },
   "devDependencies": {
     "@types/node": "^22",
@@ -75,6 +74,7 @@
     "@types/react-dom": "^19",
     "postcss": "^8",
     "tailwindcss": "^3.4.17",
+    "tsx": "^4.19.4",
     "typescript": "^5"
   }
 }
