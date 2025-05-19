@@ -72,6 +72,8 @@ interface ContactFormInput {
   icon?: string;
 }
 
+const MotionCard = motion(Card); // Create a motion version of Card
+
 export default function AdminPage() {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(true) // Overall page loading
@@ -611,8 +613,17 @@ export default function AdminPage() {
                         ) : (
                           <>
                             <div className="space-y-4">
+                             <AnimatePresence initial={false}>
                               {contacts.map((contact, index) => (
-                                <Card key={contact.id} className="bg-card/50 flex flex-col">
+                                <MotionCard
+                                  layout
+                                  key={contact.id}
+                                  className="bg-card/50 flex flex-col"
+                                  initial={{ opacity: 0, y: 20 }}
+                                  animate={{ opacity: 1, y: 0 }}
+                                  exit={{ opacity: 0, y: -20, transition: { duration: 0.2 } }}
+                                  transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                                >
                                   <CardHeader className="flex-grow">
                                     <CardTitle className="flex justify-between items-center">
                                       {contact.type}: {contact.value}
@@ -630,15 +641,22 @@ export default function AdminPage() {
                                     {contact.url && <CardDescription>URL: <Link href={contact.url} target="_blank" className="text-primary hover:underline">{contact.url}</Link></CardDescription>}
                                   </CardHeader>
                                   {contact.icon && <CardContent><p className="text-sm text-muted-foreground">Icon: {contact.icon}</p></CardContent>}
-                                </Card>
+                                </MotionCard>
                               ))}
+                             </AnimatePresence>
                             </div>
                             {contacts.length > 1 && (
-                              <div className="mt-6 flex justify-end">
+                            <motion.div
+                                layout
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: 'auto' }}
+                                exit={{ opacity: 0, height: 0 }}
+                                className="mt-6 flex justify-end"
+                            >
                                 <Button onClick={handleSaveContactOrder} disabled={isSavingOrder}>
                                   {isSavingOrder ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Saving Order...</> : "Save Contact Order"}
                                 </Button>
-                              </div>
+                            </motion.div>
                             )}
                           </>
                         )}
