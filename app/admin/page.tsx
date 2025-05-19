@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label"; // Added Label
 import { Textarea } from "@/components/ui/textarea"; // Added Textarea
 import { fetchAPI } from "@/lib/api"; // To make API calls
 import ProjectForm from "@/components/admin/project-form"; // Import ProjectForm
+import ContactForm from "@/components/admin/contact-form"; // Import ContactForm
 
 // Define a type for the profile form data
 interface ProfileFormData {
@@ -51,6 +52,26 @@ interface ProjectFormInput {
   technologies: string; // ProjectForm expects comma-separated string
 }
 
+// Define type for Contact data from API
+interface Contact {
+  id: string;
+  type: string;
+  value: string;
+  url: string | null;
+  icon: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// Define form values for ContactForm (should align with ContactForm's ContactFormValues)
+interface ContactFormInput {
+  id?: string;
+  type: string;
+  value: string;
+  url?: string;
+  icon?: string;
+}
+
 export default function AdminPage() {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(true) // Overall page loading
@@ -76,6 +97,13 @@ export default function AdminPage() {
   const [projectsError, setProjectsError] = useState<string | null>(null);
   const [selectedProject, setSelectedProject] = useState<ProjectFormInput | undefined>(undefined);
   const [showProjectForm, setShowProjectForm] = useState(false);
+
+  // Contact specific state
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [isContactsLoading, setIsContactsLoading] = useState(false);
+  const [contactsError, setContactsError] = useState<string | null>(null);
+  const [selectedContact, setSelectedContact] = useState<ContactFormInput | undefined>(undefined);
+  const [showContactForm, setShowContactForm] = useState(false);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -131,6 +159,13 @@ export default function AdminPage() {
     }
   }, [activeTab, user]);
 
+  // Fetch contacts data when tab is active and user is loaded
+  useEffect(() => {
+    if (activeTab === 'contacts' && user) {
+      fetchContacts();
+    }
+  }, [activeTab, user]);
+
   const fetchProjects = async () => {
     setIsProjectsLoading(true);
     setProjectsError(null);
@@ -143,6 +178,20 @@ export default function AdminPage() {
       setProjectsError(error instanceof Error ? error.message : "Failed to load projects data.");
     } finally {
       setIsProjectsLoading(false);
+    }
+  };
+
+  const fetchContacts = async () => {
+    setIsContactsLoading(true);
+    setContactsError(null);
+    try {
+      const data = await fetchAPI<Contact[]>('/api/contacts');
+      setContacts(data || []);
+    } catch (error) {
+      console.error("Failed to fetch contacts:", error);
+      setContactsError(error instanceof Error ? error.message : "Failed to load contacts data.");
+    } finally {
+      setIsContactsLoading(false);
     }
   };
 
@@ -159,15 +208,37 @@ export default function AdminPage() {
     setShowProjectForm(true);
   };
 
+  const handleEditContact = (contact: Contact) => {
+    setSelectedContact({
+      id: contact.id,
+      type: contact.type,
+      value: contact.value,
+      url: contact.url || undefined,
+      icon: contact.icon || undefined,
+    });
+    setShowContactForm(true);
+  };
+
   const handleAddNewProject = () => {
     setSelectedProject(undefined); // Clear any selected project
     setShowProjectForm(true); // Show the form for a new project
   };
   
+  const handleAddNewContact = () => {
+    setSelectedContact(undefined);
+    setShowContactForm(true);
+  };
+
   const handleProjectFormSuccess = () => {
     setShowProjectForm(false);
     setSelectedProject(undefined);
     fetchProjects(); // Refresh the list of projects
+  };
+
+  const handleContactFormSuccess = () => {
+    setShowContactForm(false);
+    setSelectedContact(undefined);
+    fetchContacts(); // Refresh contacts list
   };
 
   const handleDeleteProject = async (projectId: string) => {
@@ -188,6 +259,27 @@ export default function AdminPage() {
     } catch (error) {
       console.error("Failed to delete project:", error);
       alert(`Error deleting project: ${(error as Error).message}`);
+    }
+  };
+
+  const handleDeleteContact = async (contactId: string) => {
+    if (!confirm("Are you sure you want to delete this contact?")) {
+      return;
+    }
+    try {
+      const response = await fetch(`/api/contacts/${contactId}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+      }
+      alert("Contact deleted successfully!");
+      fetchContacts(); // Refresh the list
+    } catch (error) {
+      console.error("Failed to delete contact:", error);
+      alert(`Error deleting contact: ${(error as Error).message}`);
     }
   };
 
@@ -457,21 +549,57 @@ export default function AdminPage() {
               <TabsContent value="contacts">
                 <Card className="border border-border/50 backdrop-blur-sm bg-card/80">
                   <CardHeader>
-                    <CardTitle>Contact Information</CardTitle>
-                    <CardDescription>Manage your contact information displayed on the contact page</CardDescription>
+                    <CardTitle>Manage Contact Information</CardTitle>
+                    <CardDescription>Add, edit, or remove contact methods.</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-muted-foreground">
-                      This is a placeholder for the contact information management interface. In a real application, you
-                      would be able to add, edit, and delete contact methods here.
-                    </p>
-
-                    {/* 
-                      Backend Integration Point:
-                      - Create API endpoints at /api/contacts to fetch, create, update, and delete contact information
-                      - Implement a form to add/edit contact details
-                      - Implement a confirmation dialog for contact deletion
-                    */}
+                    {isContactsLoading && (
+                      <div className="flex items-center justify-center p-4">
+                        <Loader2 className="h-6 w-6 animate-spin" /> <span className="ml-2">Loading contacts...</span>
+                      </div>
+                    )}
+                    {!isContactsLoading && contactsError && (
+                      <p className="text-destructive">Error loading contacts: {contactsError}</p>
+                    )}
+                    {!isContactsLoading && !contactsError && !showContactForm && (
+                      <>
+                        <div className="mb-4 flex justify-end">
+                          <Button onClick={handleAddNewContact}>Add New Contact</Button>
+                        </div>
+                        {contacts.length === 0 ? (
+                          <p className="text-muted-foreground italic">No contacts configured yet. Add some!</p>
+                        ) : (
+                          <div className="space-y-4">
+                            {contacts.map((contact) => (
+                              <Card key={contact.id} className="bg-card/50">
+                                <CardHeader>
+                                  <CardTitle className="flex justify-between items-center">
+                                    {contact.type}: {contact.value}
+                                    <div className="space-x-2">
+                                      <Button variant="outline" size="sm" onClick={() => handleEditContact(contact)}>Edit</Button>
+                                      <Button variant="destructive" size="sm" onClick={() => handleDeleteContact(contact.id)}>Delete</Button>
+                                    </div>
+                                  </CardTitle>
+                                  {contact.url && <CardDescription>URL: <Link href={contact.url} target="_blank" className="text-primary hover:underline">{contact.url}</Link></CardDescription>}
+                                </CardHeader>
+                                {contact.icon && <CardContent><p className="text-sm text-muted-foreground">Icon: {contact.icon}</p></CardContent>}
+                              </Card>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    )}
+                    {showContactForm && (
+                      <>
+                        <Button variant="outline" onClick={() => { setShowContactForm(false); setSelectedContact(undefined); }} className="mb-4">
+                          Back to Contacts List
+                        </Button>
+                        <ContactForm 
+                          contact={selectedContact} 
+                          onSuccess={handleContactFormSuccess} 
+                        />
+                      </>
+                    )}
                   </CardContent>
                 </Card>
               </TabsContent>
