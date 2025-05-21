@@ -1,0 +1,29 @@
+services:
+  website:
+    build: .
+    ports:
+      - "2222:3000"
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://admin_db_user:whgh93h93uuihj@database:5432/portfolio-db-ajhiowf
+      - POSTGRES_USER=admin_db_user
+      - POSTGRES_PASSWORD=whgh93h93uuihj
+      - POSTGRES_HOST=database
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=portfolio-db-ajhiowf
+    depends_on:
+      - database
+
+  database:
+    image: postgres:15
+    ports:
+      - "2223:5432"
+    environment:
+      - POSTGRES_USER=admin_db_user
+      - POSTGRES_PASSWORD=whgh93h93uuihj
+      - POSTGRES_DB=portfolio-db-ajhiowf
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data: 
