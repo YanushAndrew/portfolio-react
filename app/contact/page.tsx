@@ -1,31 +1,30 @@
 import { Mail, Github, MessageCircle } from "lucide-react"
-
-import { ContactItem, type ContactItemPropsForServer } from "@/components/contact-item"
+import { ContactItem } from "@/components/contact-item"
 
 // This would be fetched from the backend in a real application
 // Example API route: GET /api/contacts
-const contactsData: ContactItemPropsForServer[] = [
+const contactsData = [
   {
     id: "1",
     type: "Email",
     value: "john.doe@example.com",
     url: "mailto:john.doe@example.com",
-    iconName: "Mail",
+    icon: "mail"
   },
   {
     id: "2",
     type: "GitHub",
     value: "github.com/johndoe",
     url: "https://github.com/johndoe",
-    iconName: "Github",
+    icon: "github"
   },
   {
     id: "3",
     type: "Telegram",
     value: "@johndoe",
     url: "https://t.me/johndoe",
-    iconName: "MessageCircle",
-  },
+    icon: "send"
+  }
 ]
 
 export default async function ContactPage() {

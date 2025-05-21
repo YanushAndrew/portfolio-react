@@ -5,46 +5,72 @@ import type { LucideIcon } from "lucide-react"
 import { motion } from "framer-motion"
 
 import { cn } from "@/lib/utils"
-import { Mail, Github, MessageCircle } from "lucide-react"
+import { 
+  Mail, Github, MessageCircle, Linkedin, Phone, FileText, Twitter, HelpCircle, AtSign, Youtube, Send,
+  Instagram, Facebook, Dribbble, Gitlab, Slack, Globe, ExternalLink, User, Code, Server, Briefcase, Building, Home
+} from "lucide-react" 
 
-export interface ContactInfoBase {
+export interface ContactInfo {
   id: string
   type: string
   value: string
   url?: string
-}
-
-// Type for data coming from Server Components (uses iconName string)
-export interface ContactItemPropsForServer extends ContactInfoBase {
-  iconName: keyof typeof iconComponents // Use keys of the icon map
-}
-
-// Internal type used by ContactItem (maps iconName to actual icon component)
-interface ContactInfoForClient extends ContactInfoBase {
   icon: LucideIcon
 }
 
+// Map icon names to Lucide components
+const iconMap: { [key: string]: LucideIcon } = {
+  mail: Mail,
+  email: Mail, // Alias for mail
+  github: Github,
+  gitlab: Gitlab,
+  linkedin: Linkedin,
+  telegram: MessageCircle, 
+  message: MessageCircle, // Alias
+  phone: Phone,
+  call: Phone, // Alias
+  resume: FileText,
+  cv: FileText, // Alias
+  twitter: Twitter,
+  atsign: AtSign,
+  youtube: Youtube,
+  send: Send,
+  instagram: Instagram,
+  facebook: Facebook,
+  dribbble: Dribbble,
+  slack: Slack,
+  website: Globe,
+  web: Globe, // Alias
+  link: ExternalLink,
+  portfolio: Briefcase,
+  profile: User,
+  code: Code,
+  server: Server,
+  company: Building,
+  office: Building, //Alias
+  home: Home,
+  default: HelpCircle, 
+};
+
+const getIconComponent = (iconName: string | null): LucideIcon => {
+  if (!iconName) return iconMap.default;
+  return iconMap[iconName.toLowerCase()] || iconMap.default;
+};
+
 interface ContactItemProps {
-  contact: ContactItemPropsForServer // Expects data with iconName
+  contact: {
+    id: string
+    type: string
+    value: string
+    url?: string
+    icon: string | null
+  }
   className?: string
   index?: number
 }
 
-const iconComponents = {
-  Mail,
-  Github,
-  MessageCircle,
-  // Add other icons here if needed
-}
-
 export function ContactItem({ contact, className, index = 0 }: ContactItemProps) {
-  const IconComponent = iconComponents[contact.iconName]
-
-  if (!IconComponent) {
-    // Handle cases where iconName might not match or return a default/null
-    console.warn(`Icon not found for name: ${contact.iconName}`)
-    return null 
-  }
+  const IconComponent = getIconComponent(contact.icon);
 
   return (
     <motion.div

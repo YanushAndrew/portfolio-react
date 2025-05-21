@@ -1,67 +1,31 @@
 "use client"
 
-import { useEffect, useState, useRef, type ElementType } from "react"
+import { useEffect, useState, useRef } from "react"
 import { motion, useInView } from "framer-motion"
-import { 
-  Mail, Github, MessageCircle, Linkedin, Phone, FileText, Twitter, HelpCircle, AtSign, Youtube, Send,
-  Instagram, Facebook, Dribbble, Gitlab, Slack, Globe, ExternalLink, User, Code, Server, Briefcase, Building, Home
-} from "lucide-react" 
-import { ContactItem, type ContactInfo } from "@/components/contact-item"
+import { Loader2 } from "lucide-react"
+import { ContactItem } from "@/components/contact-item"
 import { SectionHeader } from "@/components/ui/section-header"
-import { Loader2, type LucideIcon } from "lucide-react" // For loading indicator
 
-// API Contact type
+// API Contact type as it comes from the database
 interface ApiContact {
   id: string;
   type: string;
   value: string;
   url: string | null;
-  icon: string | null; // Icon name as string
+  icon: string | null;
 }
 
-// Map icon names to Lucide components
-const iconMap: { [key: string]: LucideIcon } = {
-  mail: Mail,
-  email: Mail, // Alias for mail
-  github: Github,
-  gitlab: Gitlab,
-  linkedin: Linkedin,
-  telegram: MessageCircle, 
-  message: MessageCircle, // Alias
-  phone: Phone,
-  call: Phone, // Alias
-  resume: FileText,
-  cv: FileText, // Alias
-  twitter: Twitter,
-  atsign: AtSign,
-  youtube: Youtube,
-  send: Send,
-  instagram: Instagram,
-  facebook: Facebook,
-  dribbble: Dribbble,
-  slack: Slack,
-  website: Globe,
-  web: Globe, // Alias
-  link: ExternalLink,
-  portfolio: Briefcase,
-  profile: User,
-  code: Code,
-  server: Server,
-  company: Building,
-  office: Building, //Alias
-  home: Home,
-  default: HelpCircle, 
-};
-
-const getIconComponent = (iconName: string | null): LucideIcon => {
-  if (iconName && iconMap[iconName.toLowerCase()]) {
-    return iconMap[iconName.toLowerCase()];
-  }
-  return iconMap.default;
-};
+// ContactItem expects this type
+interface ContactItemType {
+  id: string;
+  type: string;
+  value: string;
+  url?: string; // undefined instead of null
+  icon: string | null;
+}
 
 export function ContactsSection() {
-  const [contacts, setContacts] = useState<ContactInfo[]>([]);
+  const [contacts, setContacts] = useState<ContactItemType[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -79,14 +43,13 @@ export function ContactsSection() {
         }
         const data: ApiContact[] = await response.json();
         
-        const mappedContacts: ContactInfo[] = data.map(c => ({
-          id: c.id,
-          type: c.type,
-          value: c.value,
-          url: c.url || undefined, // ContactItem expects url to be string | undefined
-          icon: getIconComponent(c.icon), // This should now correctly assign LucideIcon
+        // Transform data to match what ContactItem expects
+        const transformedContacts: ContactItemType[] = data.map(contact => ({
+          ...contact,
+          url: contact.url || undefined // Convert null to undefined
         }));
-        setContacts(mappedContacts);
+
+        setContacts(transformedContacts);
       } catch (e) {
         console.error("Failed to fetch contacts:", e);
         setError(e instanceof Error ? e.message : "An unknown error occurred");
